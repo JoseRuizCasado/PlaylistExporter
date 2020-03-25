@@ -75,7 +75,6 @@ class CreatePlaylist:
         )
         response = requests.post(
             query,
-            data=request_body,
             headers={
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer {}'.format(self.token)
