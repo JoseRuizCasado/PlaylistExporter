@@ -7,6 +7,7 @@ import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
 
+import youtube_dl as yd
 class CreatePlaylist:
 
     def __init__(self, playlist_name, public):
@@ -15,6 +16,7 @@ class CreatePlaylist:
         self.playlist_name = playlist_name
         self.public = public
         self.youtube_client = self.get_youtube_client()
+        self.all_songs_info = {}
 
     # Log into YouTube
     def get_youtube_client(self):
@@ -39,9 +41,38 @@ class CreatePlaylist:
 
         return youtube_client
 
-    # Grab the playlist to export into Spotify
-    def get__playlist_to_export(self):
-        pass
+    # Grab the playlist to export into Spotify and save video information into a dictionary
+    # TODO: change code to grab playlist by name
+    def get_playlist_to_export(self):
+        # Taking liked videos
+        # TODO: grab playlist given by name
+        request = self.youtube_client.videos().list(
+            part='snippet,contentDetails,statistics',
+            myRating='like'
+        )
+        response = request.execute()
+
+        # Collecting each liked video
+        for song in response['items']:
+            video_tittle = song['snippet']['title']
+            youtube_url = 'https://www.youtube.com/watch?v={}'.format(song['id'])
+
+            #Using youtube_dl to collect the song name and artist name
+            video = yd.YoutubeDL({}).extract_info(youtube_url, download=False)
+            song_name = video['track']
+            artist = video['artist']
+
+            if song_name is not None and artist is not None:
+                # Saving the info
+                self.all_songs_info[video_tittle] = {
+                    'youtube_url': youtube_url,
+                    'song_name': song_name,
+                    'artist': artist,
+
+                    # Get de spotify uri
+                    'spotify_uri': self.get_spotify_uri(song_name,artist)
+                }
+
 
     # Create the playlist in Spotify
     def create_playlist(self):
