@@ -8,6 +8,10 @@ import googleapiclient.discovery
 import googleapiclient.errors
 
 import youtube_dl as yd
+
+from exceptions import ResponseException
+
+
 class CreatePlaylist:
 
     def __init__(self, playlist_name, public):
@@ -45,7 +49,6 @@ class CreatePlaylist:
     # TODO: change code to grab playlist by name
     def get_playlist_to_export(self):
         # Taking liked videos
-        # TODO: grab playlist given by name
         request = self.youtube_client.videos().list(
             part='snippet,contentDetails,statistics',
             myRating='like'
@@ -57,7 +60,7 @@ class CreatePlaylist:
             video_tittle = song['snippet']['title']
             youtube_url = 'https://www.youtube.com/watch?v={}'.format(song['id'])
 
-            #Using youtube_dl to collect the song name and artist name
+            # Using youtube_dl to collect the song name and artist name
             video = yd.YoutubeDL({}).extract_info(youtube_url, download=False)
             song_name = video['track']
             artist = video['artist']
@@ -70,9 +73,8 @@ class CreatePlaylist:
                     'artist': artist,
 
                     # Get de spotify uri
-                    'spotify_uri': self.get_spotify_uri(song_name,artist)
+                    'spotify_uri': self.get_spotify_uri(song_name, artist)
                 }
-
 
     # Create the playlist in Spotify
     def create_playlist(self):
@@ -119,4 +121,30 @@ class CreatePlaylist:
 
     # Add the song into the new Spotify playlist
     def add_song_to_playlist(self):
-        pass
+        # Populate our songs dictionary
+        self.get_playlist_to_export()
+
+        # Collect all the uris
+        uris = [info["spotify_uri"] for song, info in self.all_songs_info.items()]
+
+        # Create the playlist
+        playlist_id = self.create_playlist()
+
+        # Add the songs to the playlist
+        request_data = json.dumps(uris)
+        query = 'https://api.spotify.com/v1/playlists/{}/tracks'.format(playlist_id)
+        response = requests.post(
+            query,
+            data=request_data,
+            headers={
+                'ContentType': 'application/json',
+                'Authorization': 'Bearer {}'.format(self.token)
+            }
+        )
+
+        # Check the valid response
+        if response.status_code != 200:
+            raise ResponseException(response.status_code)
+
+        response_json = response.json()
+        return response_json
